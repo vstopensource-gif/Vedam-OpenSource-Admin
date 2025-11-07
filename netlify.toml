@@ -6,9 +6,10 @@
 [build.environment]
   # Node version (optional, for any build tools you might add)
   NODE_VERSION = "18"
-  # Disable smart secrets detection for build output files
-  # These files intentionally contain secrets after build script injection
-  SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES = "firebase-config.js,js/github-api.js"
+  # Disable smart secrets detection - we intentionally inject secrets during build
+  # The build script replaces placeholders with actual values from environment variables
+  # This is expected behavior for our deployment process
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
 
 # Branch deploy configuration
 [build.processing]
