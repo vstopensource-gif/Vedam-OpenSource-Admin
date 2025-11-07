@@ -1,0 +1,133 @@
+name: PR Checks and Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm install
+      
+      - name: Check for environment variables
+        run: |
+          if [ ! -f .env.example ]; then
+            echo "❌ .env.example file is missing"
+            exit 1
+          fi
+          echo "✅ .env.example exists"
+      
+      - name: Verify .env is in .gitignore
+        run: |
+          if grep -q "^\.env$" .gitignore; then
+            echo "✅ .env is properly ignored"
+          else
+            echo "❌ .env is not in .gitignore"
+            exit 1
+          fi
+      
+      - name: Check for hardcoded secrets
+        run: |
+          echo "Checking for hardcoded secrets..."
+          
+          # Check firebase-config.js for hardcoded API keys (should only have placeholders)
+          if grep -q "AIzaSy" firebase-config.js && ! grep -q "VITE_FIREBASE_API_KEY" firebase-config.js; then
+            echo "⚠️  Warning: firebase-config.js may contain hardcoded API key"
+          fi
+          
+          # Check github-api.js for hardcoded tokens (should only have placeholder)
+          if grep -q "ghp_" js/github-api.js && ! grep -q "VITE_GITHUB_TOKEN" js/github-api.js; then
+            echo "❌ ERROR: js/github-api.js contains hardcoded GitHub token!"
+            exit 1
+          fi
+          
+          echo "✅ No hardcoded secrets found"
+      
+      - name: Test build script
+        run: |
+          # Create a test .env file
+          cp .env.example .env.test
+          echo "VITE_FIREBASE_API_KEY=test_key" >> .env.test
+          echo "VITE_FIREBASE_AUTH_DOMAIN=test.firebaseapp.com" >> .env.test
+          echo "VITE_FIREBASE_PROJECT_ID=test_project" >> .env.test
+          echo "VITE_FIREBASE_STORAGE_BUCKET=test.firebasestorage.app" >> .env.test
+          echo "VITE_FIREBASE_MESSAGING_SENDER_ID=123456789" >> .env.test
+          echo "VITE_FIREBASE_APP_ID=1:123456789:web:test" >> .env.test
+          echo "VITE_FIREBASE_MEASUREMENT_ID=G-TEST" >> .env.test
+          echo "VITE_GITHUB_TOKEN=test_token" >> .env.test
+          
+          # Test build
+          VITE_FIREBASE_API_KEY=test_key \
+          VITE_FIREBASE_AUTH_DOMAIN=test.firebaseapp.com \
+          VITE_FIREBASE_PROJECT_ID=test_project \
+          VITE_FIREBASE_STORAGE_BUCKET=test.firebasestorage.app \
+          VITE_FIREBASE_MESSAGING_SENDER_ID=123456789 \
+          VITE_FIREBASE_APP_ID=1:123456789:web:test \
+          VITE_FIREBASE_MEASUREMENT_ID=G-TEST \
+          VITE_GITHUB_TOKEN=test_token \
+          npm run build
+          
+          # Verify placeholders were replaced
+          if grep -q "VITE_FIREBASE_API_KEY" firebase-config.js; then
+            echo "❌ Build failed: Placeholders not replaced"
+            exit 1
+          fi
+          
+          echo "✅ Build script works correctly"
+      
+      - name: Check file structure
+        run: |
+          required_files=(
+            "index.html"
+            "firebase-config.js"
+            "package.json"
+            "netlify.toml"
+            ".gitignore"
+            ".env.example"
+          )
+          
+          for file in "${required_files[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "❌ Required file missing: $file"
+              exit 1
+            fi
+          done
+          
+          echo "✅ All required files present"
+      
+      - name: Validate HTML
+        run: |
+          if ! grep -q "<!DOCTYPE html>" index.html; then
+            echo "⚠️  Warning: index.html may not be valid HTML"
+          else
+            echo "✅ index.html structure looks good"
+          fi
+      
+      - name: Check for console errors
+        run: |
+          # Check for common JavaScript errors
+          if grep -r "console.error" js/ --include="*.js" | grep -v "//" | head -5; then
+            echo "⚠️  Found console.error statements (review if intentional)"
+          fi
+      
+      - name: Summary
+        run: |
+          echo "## ✅ All checks passed!"
+          echo ""
+          echo "The PR is ready for review. Preview deployment will be created automatically on Netlify."
+

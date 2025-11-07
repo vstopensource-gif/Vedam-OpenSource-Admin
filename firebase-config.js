@@ -24,14 +24,17 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 // Your web app's Firebase configuration
+// These values are injected at build time from environment variables
+// For local development, create a .env file with VITE_ prefix
+// Build script will replace these placeholders with actual values
 const firebaseConfig = {
-	apiKey: "AIzaSyBO0PAmNKXjTJGH1aRsEc2vJJnR1Y-Tum8",
-	authDomain: "vedamopensource007.firebaseapp.com",
-	projectId: "vedamopensource007",
-	storageBucket: "vedamopensource007.firebasestorage.app",
-	messagingSenderId: "1097939608119",
-	appId: "1:1097939608119:web:90e2923b4c3ed3fd1515b2",
-	measurementId: "G-G8V5WT7S5V"
+	apiKey: "VITE_FIREBASE_API_KEY",
+	authDomain: "VITE_FIREBASE_AUTH_DOMAIN",
+	projectId: "VITE_FIREBASE_PROJECT_ID",
+	storageBucket: "VITE_FIREBASE_STORAGE_BUCKET",
+	messagingSenderId: "VITE_FIREBASE_MESSAGING_SENDER_ID",
+	appId: "VITE_FIREBASE_APP_ID",
+	measurementId: "VITE_FIREBASE_MEASUREMENT_ID"
 };
 
 // Initialize Firebase
@@ -72,5 +75,3 @@ export {
 	limit,
 	Timestamp
 };
-
-

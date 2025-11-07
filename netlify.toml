@@ -1,0 +1,73 @@
+[build]
+  # Build command to inject environment variables
+  command = "npm install && npm run build"
+  publish = "."
+
+[build.environment]
+  # Node version (optional, for any build tools you might add)
+  NODE_VERSION = "18"
+
+# Branch deploy configuration
+[build.processing]
+  skip_processing = false
+
+# Automatic preview deployments for all branches and PRs
+# No manual approval needed for preview deployments
+[context.branch-deploy]
+  command = "npm install && npm run build"
+  publish = "."
+
+[context.deploy-preview]
+  command = "npm install && npm run build"
+  publish = "."
+
+# Production deployment only on main branch (after PR merge)
+[context.production]
+  command = "npm install && npm run build"
+  publish = "."
+
+# Production branch settings
+[context.production.environment]
+  NODE_ENV = "production"
+
+# Branch protection - only main branch can deploy to production
+# All other branches get preview deployments automatically
+
+# Automatic preview deployments (no approval needed)
+# These settings ensure:
+# - All PRs get preview deployments automatically
+# - Preview deployments don't require manual approval
+# - Production only deploys when PR is merged to main
+
+# Redirect rules
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Headers for security
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+
+# Headers for static assets
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
