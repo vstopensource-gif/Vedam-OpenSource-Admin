@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forms - Vedam Open Source Admin</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div id="dashboard" class="dashboard">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button id="sidebarToggle" class="sidebar-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1><i class="fas fa-file-alt"></i> Forms</h1>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <span id="adminEmail"></span>
+                    <button id="logoutBtn" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sidebar -->
+        <nav id="sidebar" class="sidebar">
+            <ul class="nav-menu">
+                <li class="nav-item" data-page="dashboard">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </li>
+                <li class="nav-item" data-page="members">
+                    <i class="fas fa-users"></i>
+                    <span>Members</span>
+                </li>
+                <li class="nav-item" data-page="analytics">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Analytics</span>
+                </li>
+                <li class="nav-item nav-item-dropdown open">
+                    <div class="nav-item-header">
+                        <i class="fas fa-tools"></i>
+                        <span>Tools</span>
+                        <i class="fas fa-chevron-down nav-dropdown-arrow" style="transform: rotate(180deg);"></i>
+                    </div>
+                    <ul class="nav-dropdown-menu show">
+                        <li class="nav-dropdown-item active" data-page="forms">
+                            <i class="fas fa-file-alt"></i>
+                            <span>Forms</span>
+                        </li>
+                    </ul>
+                </li>
+                <li class="nav-item" data-page="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Forms List Page -->
+            <div id="formsListPage" class="page active">
+                <div class="page-header">
+                    <div>
+                        <h2>Forms</h2>
+                        <p>Create and manage your forms</p>
+                    </div>
+                    <div class="page-actions">
+                        <div class="view-toggle">
+                            <button id="gridViewBtn" class="view-toggle-btn active" title="Grid View">
+                                <i class="fas fa-th"></i>
+                            </button>
+                            <button id="listViewBtn" class="view-toggle-btn" title="List View">
+                                <i class="fas fa-list"></i>
+                            </button>
+                        </div>
+                        <button id="createFormBtn" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Create New Form
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stats Summary -->
+                <div id="formsStatsSummary" class="forms-stats-summary">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="totalFormsStat">0</div>
+                            <div class="stat-label">Total Forms</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="activeFormsStat">0</div>
+                            <div class="stat-label">Active Forms</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #64748b 0%, #475569 100%);">
+                            <i class="fas fa-edit"></i>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="draftFormsStat">0</div>
+                            <div class="stat-label">Draft Forms</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filters and Search -->
+                <div class="filters-section">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="formSearch" placeholder="Search forms by name, category...">
+                        <button id="clearFormSearch" class="clear-search-btn" style="display: none">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="filter-controls">
+                        <select id="statusFilter">
+                            <option value="">All Status</option>
+                            <option value="draft">Draft</option>
+                            <option value="active">Active</option>
+                            <option value="closed">Closed</option>
+                        </select>
+                        <select id="categoryFilter">
+                            <option value="">All Categories</option>
+                        </select>
+                        <select id="sortFilter">
+                            <option value="date-desc">Sort: Newest First</option>
+                            <option value="date-asc">Sort: Oldest First</option>
+                            <option value="name-asc">Sort: Name A-Z</option>
+                            <option value="name-desc">Sort: Name Z-A</option>
+                            <option value="status">Sort: Status</option>
+                        </select>
+                        <button id="clearFiltersBtn" class="btn btn-secondary btn-sm" style="display: none">
+                            <i class="fas fa-times"></i> Clear Filters
+                        </button>
+                    </div>
+                    <div class="filter-active-indicators" id="filterIndicators"></div>
+                </div>
+
+                <!-- Bulk Actions Bar -->
+                <div id="bulkActionsBar" class="bulk-actions-bar" style="display: none">
+                    <div class="bulk-actions-info">
+                        <span id="selectedCount">0</span> form(s) selected
+                    </div>
+                    <div class="bulk-actions-buttons">
+                        <button class="btn btn-secondary btn-sm" onclick="bulkChangeStatus()">
+                            <i class="fas fa-edit"></i> Change Status
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="bulkExport()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="bulkDelete()">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="clearSelection()">
+                            <i class="fas fa-times"></i> Clear
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Forms Container -->
+                <div id="formsContainer" class="forms-container">
+                    <!-- Forms Grid -->
+                    <div id="formsGrid" class="forms-grid">
+                        <!-- Forms will be loaded here -->
+                    </div>
+
+                    <!-- Forms List -->
+                    <div id="formsList" class="forms-list-view" style="display: none">
+                        <!-- List view will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <div id="emptyState" class="empty-state" style="display: none">
+                    <div class="empty-state-icon">
+                        <i class="fas fa-file-alt"></i>
+                    </div>
+                    <h3>No forms yet</h3>
+                    <p>Get started by creating your first form to collect data and responses</p>
+                    <button class="btn btn-primary" onclick="document.getElementById('createFormBtn').click()">
+                        <i class="fas fa-plus"></i> Create Your First Form
+                    </button>
+                </div>
+            </div>
+
+            <!-- Form Builder Page -->
+            <div id="formBuilderPage" class="page">
+                <!-- Builder content will be loaded dynamically -->
+            </div>
+
+            <!-- Form Details Page -->
+            <div id="formDetailsPage" class="page">
+                <!-- Form details will be loaded dynamically -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Loading...</p>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script type="module">
+        // Setup sidebar toggle for forms.html
+        import { initializeAuth, getCurrentUser } from './js/auth.js';
+        import { showLoading, hideLoading } from './js/utils.js';
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.getElementById('sidebar');
+            const dashboard = document.getElementById('dashboard');
+            const adminEmail = document.getElementById('adminEmail');
+            const logoutBtn = document.getElementById('logoutBtn');
+            
+            // Sidebar toggle
+            if (sidebarToggle && sidebar && dashboard) {
+                sidebarToggle.addEventListener('click', () => {
+                    sidebar.classList.toggle('open');
+                    if (sidebar.classList.contains('open')) {
+                        dashboard.classList.add('sidebar-open');
+                    } else {
+                        dashboard.classList.remove('sidebar-open');
+                    }
+                });
+            }
+            
+            // Logout
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', async () => {
+                    const { adminLogout } = await import('./js/auth.js');
+                    try {
+                        await adminLogout();
+                        window.location.href = 'index.html';
+                    } catch (error) {
+                        console.error('Logout error:', error);
+                    }
+                });
+            }
+            
+            // Set admin email
+            const user = getCurrentUser();
+            if (user && adminEmail) {
+                adminEmail.textContent = user.email;
+            }
+            
+            // Navigation handling for regular nav items
+            const navItems = document.querySelectorAll('.nav-item[data-page]');
+            navItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    const page = item.dataset.page;
+                    if (page && page !== 'forms') {
+                        window.location.href = 'index.html';
+                    }
+                });
+            });
+            
+            // Dropdown navigation items
+            const dropdownItems = document.querySelectorAll('.nav-dropdown-item');
+            dropdownItems.forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const page = item.dataset.page;
+                    if (page && page !== 'forms') {
+                        window.location.href = 'index.html';
+                    }
+                });
+            });
+            
+            // Dropdown toggle - consistent with index.html
+            const dropdownHeaders = document.querySelectorAll('.nav-item-header');
+            dropdownHeaders.forEach(header => {
+                header.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const dropdown = header.closest('.nav-item-dropdown');
+                    if (dropdown) {
+                        // Simply toggle the open class - CSS will handle all visibility
+                        dropdown.classList.toggle('open');
+                    }
+                });
+            });
+            
+            // Check auth
+            initializeAuth(
+                () => {
+                    // Authenticated - page is already loaded
+                    console.log('Forms page authenticated');
+                },
+                () => {
+                    // Not authenticated - redirect to login
+                    console.log('Not authenticated, redirecting to login');
+                    window.location.href = 'index.html';
+                }
+            );
+        });
+    </script>
+    <script type="module" src="js/forms.js"></script>
+    <script type="module" src="js/form-builder.js"></script>
+    <script type="module" src="js/form-submissions.js"></script>
+    <script type="module" src="js/form-analytics.js"></script>
+</body>
+</html>
+

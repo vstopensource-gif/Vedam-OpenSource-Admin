@@ -21,6 +21,75 @@ export function hideLoading() {
 }
 
 /**
+ * Toast Notification System
+ */
+let toastContainer = null;
+
+function initToastContainer() {
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container';
+        toastContainer.id = 'toastContainer';
+        document.body.appendChild(toastContainer);
+    }
+    return toastContainer;
+}
+
+/**
+ * Show a toast notification
+ * @param {string} message - The message to display
+ * @param {string} type - Type of toast: 'success', 'error', 'warning', 'info'
+ * @param {number} duration - Duration in milliseconds (default: 4000)
+ */
+export function showToast(message, type = 'info', duration = 4000) {
+    initToastContainer();
+    
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    
+    const icons = {
+        success: 'fa-check-circle',
+        error: 'fa-exclamation-circle',
+        warning: 'fa-exclamation-triangle',
+        info: 'fa-info-circle'
+    };
+    
+    toast.innerHTML = `
+        <div class="toast-content">
+            <i class="fas ${icons[type] || icons.info}"></i>
+            <span class="toast-message">${escapeHtml(message)}</span>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    toastContainer.appendChild(toast);
+    
+    // Trigger animation
+    setTimeout(() => toast.classList.add('show'), 10);
+    
+    // Auto dismiss
+    if (duration > 0) {
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    }
+    
+    return toast;
+}
+
+/**
+ * Helper to escape HTML
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
  * Formats a date to a readable string
  * @param {string|Date} date - The date to format
  * @returns {string} - Formatted date string

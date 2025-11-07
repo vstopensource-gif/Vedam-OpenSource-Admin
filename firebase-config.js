@@ -19,7 +19,8 @@ import {
 	query,
 	where,
 	orderBy,
-	limit
+	limit,
+	Timestamp
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 // Your web app's Firebase configuration
@@ -68,7 +69,8 @@ export {
 	query,
 	where,
 	orderBy,
-	limit
+	limit,
+	Timestamp
 };
 
 
