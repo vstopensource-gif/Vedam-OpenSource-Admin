@@ -126,9 +126,20 @@ jobs:
       # ============================================
       - name: Code Quality - JavaScript syntax
         run: |
-          for file in js/*.js firebase-config.js app.js 2>/dev/null; do
+          # Check JS files in js/ directory
+          for file in js/*.js; do
             if [ -f "$file" ]; then
-              node --check "$file" || {
+              node --check "$file" 2>/dev/null || {
+                echo "❌ Syntax error in $file"
+                exit 1
+              }
+            fi
+          done
+          
+          # Check main config files
+          for file in firebase-config.js app.js; do
+            if [ -f "$file" ]; then
+              node --check "$file" 2>/dev/null || {
                 echo "❌ Syntax error in $file"
                 exit 1
               }
