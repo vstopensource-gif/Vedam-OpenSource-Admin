@@ -79,10 +79,11 @@ const filesToProcess = [
   {
     file: 'js/github-api.js',
     replacements: {
-      // Only replace if token exists, otherwise keep placeholder so code can detect missing token
-      "'VITE_GITHUB_TOKEN'": process.env.VITE_GITHUB_TOKEN && process.env.VITE_GITHUB_TOKEN.trim() !== '' 
-        ? `'${process.env.VITE_GITHUB_TOKEN}'` 
-        : "'VITE_GITHUB_TOKEN'", // Keep placeholder if not set
+      // Only replace the assignment, not comparison checks
+      // Pattern matches: const GITHUB_TOKEN = 'VITE_GITHUB_TOKEN';
+      "const GITHUB_TOKEN = 'VITE_GITHUB_TOKEN'": process.env.VITE_GITHUB_TOKEN && process.env.VITE_GITHUB_TOKEN.trim() !== '' 
+        ? `const GITHUB_TOKEN = '${process.env.VITE_GITHUB_TOKEN}'` 
+        : "const GITHUB_TOKEN = 'VITE_GITHUB_TOKEN'", // Keep placeholder if not set
     }
   }
 ];

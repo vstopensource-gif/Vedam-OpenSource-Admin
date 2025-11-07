@@ -110,12 +110,13 @@ jobs:
             exit 1
           fi
           
-          if grep -q "VITE_GITHUB_TOKEN" js/github-api.js; then
+          # Check for placeholder in code assignment (not in comments or strings)
+          if grep -q "const GITHUB_TOKEN = 'VITE_GITHUB_TOKEN'" js/github-api.js || grep -q "GITHUB_TOKEN = 'VITE_GITHUB_TOKEN'" js/github-api.js; then
             echo "❌ Build failed: Placeholders not replaced in js/github-api.js"
             exit 1
           fi
           
-          if [ -f app.js ] && grep -q "VITE_GITHUB_TOKEN" app.js; then
+          if [ -f app.js ] && (grep -q "const GITHUB_TOKEN = 'VITE_GITHUB_TOKEN'" app.js || grep -q "GITHUB_TOKEN = 'VITE_GITHUB_TOKEN'" app.js); then
             echo "❌ Build failed: Placeholders not replaced in app.js"
             exit 1
           fi
