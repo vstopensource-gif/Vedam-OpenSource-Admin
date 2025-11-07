@@ -362,8 +362,10 @@ async function startBackgroundGitHubRefresh({ days = 365 } = {}) {
 
     let completed = 0;
     let errorCount = 0;
-    const batchSize = 4;
-    const delayBetween = 800;
+    // Reduced batch size and increased delay to avoid GitHub API rate limits
+    // Without token: 60 requests/hour, with token: 5000 requests/hour
+    const batchSize = 2; // Process 2 members at a time
+    const delayBetween = 2000; // 2 second delay between batches
 
     if (progressWrap) progressWrap.style.display = 'block';
     const updateUI = () => {
@@ -387,24 +389,50 @@ async function startBackgroundGitHubRefresh({ days = 365 } = {}) {
             const processPromise = (async () => {
                 try {
                     console.log(`Starting fetch for ${member.githubUsername}...`);
-                    const [snap, languages, repos, calendar] = await Promise.all([
-                        getUserActivitySnapshot(member.githubUsername, { lifetime: true, prsFirst: 50 }).catch((err) => {
-                            console.error(`Error in getUserActivitySnapshot for ${member.githubUsername}:`, err);
-                            throw err;
-                        }),
-                        fetchUserLanguages(member.githubUsername, 100).catch((err) => {
-                            console.warn(`Error fetching languages for ${member.githubUsername}:`, err);
-                            return {};
-                        }),
-                        fetchUserRepositories(member.githubUsername, 100).catch((err) => {
-                            console.warn(`Error fetching repos for ${member.githubUsername}:`, err);
-                            return [];
-                        }),
-                        fetchContributionCalendar(member.githubUsername).catch((err) => {
-                            console.warn(`Error fetching calendar for ${member.githubUsername}:`, err);
-                            return null;
-                        })
-                    ]);
+                    
+                    // Fetch user info first (lightweight)
+                    const snap = await getUserActivitySnapshot(member.githubUsername, { lifetime: true, prsFirst: 50 }).catch((err) => {
+                        console.error(`Error in getUserActivitySnapshot for ${member.githubUsername}:`, err);
+                        return {
+                            publicRepos: 0,
+                            followers: 0,
+                            following: 0,
+                            contributions: 0,
+                            commits: 0,
+                            pullRequests: 0,
+                            mergedPRs: 0,
+                            openPRs: 0,
+                            closedPRs: 0,
+                            issues: 0,
+                            recentPRs: [],
+                            totalStars: 0,
+                            totalForks: 0
+                        };
+                    });
+                    
+                    // Small delay before next API call
+                    await new Promise(r => setTimeout(r, 200));
+                    
+                    // Fetch repos (moderate API usage)
+                    const repos = await fetchUserRepositories(member.githubUsername, 100).catch((err) => {
+                        console.warn(`Error fetching repos for ${member.githubUsername}:`, err);
+                        return [];
+                    });
+                    
+                    // Small delay before next API call
+                    await new Promise(r => setTimeout(r, 200));
+                    
+                    // Skip language fetching if no token (requires many API calls)
+                    // Only fetch languages if we have a valid token
+                    let languages = {};
+                    try {
+                        languages = await fetchUserLanguages(member.githubUsername, 100);
+                    } catch (err) {
+                        console.warn(`Error fetching languages for ${member.githubUsername}:`, err);
+                    }
+                    
+                    // Calendar is not implemented, always null
+                    const calendar = null;
                     
                     console.log(`Completed API calls for ${member.githubUsername}`);
                     

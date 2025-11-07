@@ -79,7 +79,10 @@ const filesToProcess = [
   {
     file: 'js/github-api.js',
     replacements: {
-      "'VITE_GITHUB_TOKEN'": process.env.VITE_GITHUB_TOKEN ? `'${process.env.VITE_GITHUB_TOKEN}'` : "''",
+      // Only replace if token exists, otherwise keep placeholder so code can detect missing token
+      "'VITE_GITHUB_TOKEN'": process.env.VITE_GITHUB_TOKEN && process.env.VITE_GITHUB_TOKEN.trim() !== '' 
+        ? `'${process.env.VITE_GITHUB_TOKEN}'` 
+        : "'VITE_GITHUB_TOKEN'", // Keep placeholder if not set
     }
   }
 ];

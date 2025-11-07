@@ -7,11 +7,83 @@ const GITHUB_TOKEN = 'VITE_GITHUB_TOKEN';
 // Cache for GitHub user data
 export let githubUserCache = {};
 
+// Rate limit tracking
+let rateLimitReset = null;
+let rateLimitRemaining = null;
+
 /**
  * Clears the GitHub user cache
  */
 export function clearGitHubCache() {
     githubUserCache = {};
+}
+
+/**
+ * Check rate limit headers and wait if needed
+ * @param {Response} response - Fetch response object
+ * @returns {Promise<void>}
+ */
+async function handleRateLimit(response) {
+    const remaining = response.headers.get('X-RateLimit-Remaining');
+    const reset = response.headers.get('X-RateLimit-Reset');
+    
+    if (remaining !== null) {
+        rateLimitRemaining = parseInt(remaining, 10);
+    }
+    if (reset !== null) {
+        rateLimitReset = parseInt(reset, 10) * 1000; // Convert to milliseconds
+    }
+    
+    // If we hit rate limit (429 or remaining is 0), wait until reset
+    if (response.status === 429 || (rateLimitRemaining !== null && rateLimitRemaining === 0)) {
+        const waitTime = rateLimitReset ? Math.max(0, rateLimitReset - Date.now() + 1000) : 60000;
+        console.warn(`Rate limit hit. Waiting ${Math.round(waitTime / 1000)}s before retrying...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+}
+
+/**
+ * Make a GitHub API request with rate limit handling
+ * @param {string} url - API endpoint URL
+ * @param {Object} options - Fetch options
+ * @param {number} maxRetries - Maximum retry attempts
+ * @returns {Promise<Response>}
+ */
+async function githubApiRequest(url, options = {}, maxRetries = 3) {
+    const headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        ...options.headers
+    };
+    
+    // Add token if available and not placeholder
+    if (GITHUB_TOKEN && GITHUB_TOKEN !== 'VITE_GITHUB_TOKEN' && GITHUB_TOKEN.trim() !== '') {
+        headers['Authorization'] = `token ${GITHUB_TOKEN}`;
+    }
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        const response = await fetch(url, { ...options, headers });
+        
+        // Handle rate limiting
+        if (response.status === 429 || response.status === 403) {
+            await handleRateLimit(response);
+            
+            // If still rate limited after waiting, skip this request
+            if (response.status === 429 && attempt < maxRetries - 1) {
+                continue; // Retry after waiting
+            }
+            
+            // If 403 and no token, skip silently (unauthenticated request)
+            if (response.status === 403 && (!GITHUB_TOKEN || GITHUB_TOKEN === 'VITE_GITHUB_TOKEN' || GITHUB_TOKEN.trim() === '')) {
+                console.warn(`GitHub API 403 Forbidden - token may be missing or invalid. Skipping request to ${url}`);
+                return response; // Return the response but don't throw
+            }
+        }
+        
+        return response;
+    }
+    
+    // If all retries failed, return the last response
+    return fetch(url, { ...options, headers });
 }
 
 /**
@@ -27,17 +99,7 @@ export async function fetchGitHubUserInfo(githubUsername, useCache = true) {
     }
 
     try {
-        // Prepare headers
-        const headers = {
-            'Accept': 'application/vnd.github.v3+json'
-        };
-        
-        // Add token if available
-        if (GITHUB_TOKEN && GITHUB_TOKEN !== 'VITE_GITHUB_TOKEN') {
-            headers['Authorization'] = `token ${GITHUB_TOKEN}`;
-        }
-
-        const response = await fetch(`https://api.github.com/users/${githubUsername}`, { headers });
+        const response = await githubApiRequest(`https://api.github.com/users/${githubUsername}`);
 
         if (response.ok) {
             const userData = await response.json();
@@ -61,6 +123,10 @@ export async function fetchGitHubUserInfo(githubUsername, useCache = true) {
         } else if (response.status === 404) {
             console.warn(`GitHub user '${githubUsername}' not found (404)`);
             githubUserCache[githubUsername] = null;
+            return null;
+        } else if (response.status === 403 || response.status === 429) {
+            // Rate limited or forbidden - return null but don't cache
+            console.warn(`GitHub API ${response.status} for user '${githubUsername}' - skipping`);
             return null;
         } else {
             console.error(`GitHub API error: ${response.status} - ${response.statusText}`);
@@ -125,18 +191,12 @@ export async function getUserActivitySnapshot(githubUsername, opts = {}) {
 export async function fetchUserLanguages(githubUsername, limit = 100) {
     try {
         // Return empty object if no token or token is placeholder
-        if (!GITHUB_TOKEN || GITHUB_TOKEN === 'VITE_GITHUB_TOKEN') {
+        if (!GITHUB_TOKEN || GITHUB_TOKEN === 'VITE_GITHUB_TOKEN' || GITHUB_TOKEN.trim() === '') {
             return {};
         }
         
-        const headers = {
-            'Accept': 'application/vnd.github.v3+json',
-            'Authorization': `token ${GITHUB_TOKEN}`
-        };
-        
-        const reposResponse = await fetch(
-            `https://api.github.com/users/${githubUsername}/repos?sort=updated&per_page=${limit}`,
-            { headers }
+        const reposResponse = await githubApiRequest(
+            `https://api.github.com/users/${githubUsername}/repos?sort=updated&per_page=${limit}`
         );
 
         if (!reposResponse.ok) {
@@ -146,11 +206,13 @@ export async function fetchUserLanguages(githubUsername, limit = 100) {
         const repos = await reposResponse.json();
         const languageBreakdown = {};
         
-        for (const repo of repos) {
+        // Limit to first 20 repos to avoid too many API calls
+        const reposToCheck = repos.slice(0, Math.min(20, repos.length));
+        
+        for (const repo of reposToCheck) {
             try {
-                const langResponse = await fetch(
-                    `https://api.github.com/repos/${repo.full_name}/languages`,
-                    { headers }
+                const langResponse = await githubApiRequest(
+                    `https://api.github.com/repos/${repo.full_name}/languages`
                 );
                 
                 if (langResponse.ok) {
@@ -160,9 +222,13 @@ export async function fetchUserLanguages(githubUsername, limit = 100) {
                             languageBreakdown[lang] = (languageBreakdown[lang] || 0) + bytes;
                         }
                     });
+                } else if (langResponse.status === 403 || langResponse.status === 429) {
+                    // Rate limited, stop fetching languages
+                    break;
                 }
                 
-                await new Promise(r => setTimeout(r, 200));
+                // Delay between requests to avoid rate limits
+                await new Promise(r => setTimeout(r, 300));
             } catch (error) {
                 console.error(`Error fetching languages for ${repo.full_name}:`, error);
             }
@@ -183,29 +249,26 @@ export async function fetchUserLanguages(githubUsername, limit = 100) {
  */
 export async function fetchUserRepositories(githubUsername, limit = 100) {
     try {
-        const headers = {
-            'Accept': 'application/vnd.github.v3+json'
-        };
-        
-        if (GITHUB_TOKEN && GITHUB_TOKEN !== 'VITE_GITHUB_TOKEN') {
-            headers['Authorization'] = `token ${GITHUB_TOKEN}`;
-        }
-
         const allRepos = [];
         let page = 1;
         const perPage = 100;
         let hasMore = true;
 
         while (hasMore && allRepos.length < limit) {
-        const response = await fetch(
-                `https://api.github.com/users/${githubUsername}/repos?sort=updated&per_page=${perPage}&page=${page}`, 
-            { headers }
-        );
+            const response = await githubApiRequest(
+                `https://api.github.com/users/${githubUsername}/repos?sort=updated&per_page=${perPage}&page=${page}`
+            );
 
             if (!response.ok) {
                 if (response.status === 404) {
                     break;
                 }
+                // If rate limited or forbidden, return what we have so far
+                if (response.status === 403 || response.status === 429) {
+                    console.warn(`GitHub API ${response.status} for repos of '${githubUsername}' - returning partial results`);
+                    break;
+                }
+                // For other errors, throw but catch below
                 throw new Error(`GitHub API error: ${response.status}`);
             }
 
@@ -217,20 +280,20 @@ export async function fetchUserRepositories(githubUsername, limit = 100) {
                 repos.forEach(repo => {
                     if (allRepos.length < limit) {
                         allRepos.push({
-                id: repo.id,
-                name: repo.name,
-                full_name: repo.full_name,
-                description: repo.description || '',
-                url: repo.html_url,
+                            id: repo.id,
+                            name: repo.name,
+                            full_name: repo.full_name,
+                            description: repo.description || '',
+                            url: repo.html_url,
                             language: repo.language || null,
-                stars: repo.stargazers_count || 0,
-                forks: repo.forks_count || 0,
-                open_issues: repo.open_issues_count || 0,
-                is_private: repo.private,
-                created_at: repo.created_at,
-                updated_at: repo.updated_at,
-                pushed_at: repo.pushed_at,
-                default_branch: repo.default_branch
+                            stars: repo.stargazers_count || 0,
+                            forks: repo.forks_count || 0,
+                            open_issues: repo.open_issues_count || 0,
+                            is_private: repo.private,
+                            created_at: repo.created_at,
+                            updated_at: repo.updated_at,
+                            pushed_at: repo.pushed_at,
+                            default_branch: repo.default_branch
                         });
                     }
                 });
@@ -238,6 +301,11 @@ export async function fetchUserRepositories(githubUsername, limit = 100) {
                 const linkHeader = response.headers.get('Link');
                 hasMore = repos.length === perPage && (!linkHeader || linkHeader.includes('rel="next"'));
                 page++;
+                
+                // Small delay between pages to avoid hitting rate limits
+                if (hasMore) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
             }
         }
         
