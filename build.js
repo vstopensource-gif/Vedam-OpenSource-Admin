@@ -67,22 +67,23 @@ const filesToProcess = [
   {
     file: 'firebase-config.js',
     replacements: {
-      '"VITE_FIREBASE_API_KEY"': process.env.VITE_FIREBASE_API_KEY,
-      '"VITE_FIREBASE_AUTH_DOMAIN"': process.env.VITE_FIREBASE_AUTH_DOMAIN,
-      '"VITE_FIREBASE_PROJECT_ID"': process.env.VITE_FIREBASE_PROJECT_ID,
-      '"VITE_FIREBASE_STORAGE_BUCKET"': process.env.VITE_FIREBASE_STORAGE_BUCKET,
-      '"VITE_FIREBASE_MESSAGING_SENDER_ID"': process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-      '"VITE_FIREBASE_APP_ID"': process.env.VITE_FIREBASE_APP_ID,
-      '"VITE_FIREBASE_MEASUREMENT_ID"': process.env.VITE_FIREBASE_MEASUREMENT_ID,
+      '"VITE_FIREBASE_API_KEY"': `"${process.env.VITE_FIREBASE_API_KEY}"`,
+      '"VITE_FIREBASE_AUTH_DOMAIN"': `"${process.env.VITE_FIREBASE_AUTH_DOMAIN}"`,
+      '"VITE_FIREBASE_PROJECT_ID"': `"${process.env.VITE_FIREBASE_PROJECT_ID}"`,
+      '"VITE_FIREBASE_STORAGE_BUCKET"': `"${process.env.VITE_FIREBASE_STORAGE_BUCKET}"`,
+      '"VITE_FIREBASE_MESSAGING_SENDER_ID"': `"${process.env.VITE_FIREBASE_MESSAGING_SENDER_ID}"`,
+      '"VITE_FIREBASE_APP_ID"': `"${process.env.VITE_FIREBASE_APP_ID}"`,
+      '"VITE_FIREBASE_MEASUREMENT_ID"': `"${process.env.VITE_FIREBASE_MEASUREMENT_ID}"`,
     }
   },
   {
     file: 'js/github-api.js',
     replacements: {
-      // Only replace if token exists, otherwise keep placeholder so code can detect missing token
-      "'VITE_GITHUB_TOKEN'": process.env.VITE_GITHUB_TOKEN && process.env.VITE_GITHUB_TOKEN.trim() !== '' 
-        ? `'${process.env.VITE_GITHUB_TOKEN}'` 
-        : "'VITE_GITHUB_TOKEN'", // Keep placeholder if not set
+      // Only replace the assignment, not comparison checks
+      // Pattern matches: const GITHUB_TOKEN = 'VITE_GITHUB_TOKEN';
+      "const GITHUB_TOKEN = 'VITE_GITHUB_TOKEN'": process.env.VITE_GITHUB_TOKEN && process.env.VITE_GITHUB_TOKEN.trim() !== '' 
+        ? `const GITHUB_TOKEN = '${process.env.VITE_GITHUB_TOKEN}'` 
+        : "const GITHUB_TOKEN = 'VITE_GITHUB_TOKEN'", // Keep placeholder if not set
     }
   }
 ];
@@ -107,7 +108,7 @@ filesToProcess.forEach(({ file, replacements }) => {
     if (content.includes(key)) {
       // Replace with actual value
       if (value) {
-        // Value already has quotes from the replacement definition, use as-is
+        // Value is properly quoted in the replacement definition
         content = content.replace(regex, value);
         modified = true;
         console.log(`✅ Replaced ${key} in ${file}`);
