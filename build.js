@@ -1,11 +1,26 @@
 /**
  * Build script to inject environment variables into static files
  * This replaces import.meta.env references with actual values
+ * 
+ * IMPORTANT: This script modifies source files directly.
+ * Only run this in CI/CD (Netlify) where files aren't committed.
+ * For local development, use placeholders directly.
+ * 
  * Run this before deploying: node build.js
  */
 
 const fs = require('fs');
 const path = require('path');
+
+// Check if running in CI/CD environment
+const isCI = process.env.CI === 'true' || process.env.NETLIFY === 'true' || process.env.GITHUB_ACTIONS === 'true';
+
+if (!isCI) {
+  console.warn('⚠️  WARNING: Build script modifies source files!');
+  console.warn('⚠️  This should only run in CI/CD (Netlify/GitHub Actions).');
+  console.warn('⚠️  For local development, use placeholders directly.');
+  console.warn('⚠️  Continuing anyway (for testing purposes)...\n');
+}
 
 // Load environment variables
 require('dotenv').config();

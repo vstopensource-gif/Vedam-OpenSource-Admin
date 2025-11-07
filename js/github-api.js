@@ -38,7 +38,7 @@ export async function fetchGitHubUserInfo(githubUsername, useCache = true) {
         }
 
         const response = await fetch(`https://api.github.com/users/${githubUsername}`, { headers });
-        
+
         if (response.ok) {
             const userData = await response.json();
             const userInfo = {
@@ -133,7 +133,7 @@ export async function fetchUserLanguages(githubUsername, limit = 100) {
             'Accept': 'application/vnd.github.v3+json',
             'Authorization': `token ${GITHUB_TOKEN}`
         };
-
+        
         const reposResponse = await fetch(
             `https://api.github.com/users/${githubUsername}/repos?sort=updated&per_page=${limit}`,
             { headers }
@@ -197,10 +197,10 @@ export async function fetchUserRepositories(githubUsername, limit = 100) {
         let hasMore = true;
 
         while (hasMore && allRepos.length < limit) {
-            const response = await fetch(
-                `https://api.github.com/users/${githubUsername}/repos?sort=updated&per_page=${perPage}&page=${page}`,
-                { headers }
-            );
+        const response = await fetch(
+                `https://api.github.com/users/${githubUsername}/repos?sort=updated&per_page=${perPage}&page=${page}`, 
+            { headers }
+        );
 
             if (!response.ok) {
                 if (response.status === 404) {
@@ -217,20 +217,20 @@ export async function fetchUserRepositories(githubUsername, limit = 100) {
                 repos.forEach(repo => {
                     if (allRepos.length < limit) {
                         allRepos.push({
-                            id: repo.id,
-                            name: repo.name,
-                            full_name: repo.full_name,
-                            description: repo.description || '',
-                            url: repo.html_url,
+                id: repo.id,
+                name: repo.name,
+                full_name: repo.full_name,
+                description: repo.description || '',
+                url: repo.html_url,
                             language: repo.language || null,
-                            stars: repo.stargazers_count || 0,
-                            forks: repo.forks_count || 0,
-                            open_issues: repo.open_issues_count || 0,
-                            is_private: repo.private,
-                            created_at: repo.created_at,
-                            updated_at: repo.updated_at,
-                            pushed_at: repo.pushed_at,
-                            default_branch: repo.default_branch
+                stars: repo.stargazers_count || 0,
+                forks: repo.forks_count || 0,
+                open_issues: repo.open_issues_count || 0,
+                is_private: repo.private,
+                created_at: repo.created_at,
+                updated_at: repo.updated_at,
+                pushed_at: repo.pushed_at,
+                default_branch: repo.default_branch
                         });
                     }
                 });
@@ -307,7 +307,7 @@ export async function fetchRecentCommits(githubUsername, limit = 30) {
             'Accept': 'application/vnd.github.v3+json',
             'Authorization': `token ${GITHUB_TOKEN}`
         };
-
+        
         const reposResponse = await fetch(
             `https://api.github.com/users/${githubUsername}/repos?sort=updated&per_page=10`,
             { headers }
@@ -346,7 +346,7 @@ export async function fetchRecentCommits(githubUsername, limit = 30) {
                     });
                 }
                 
-                await new Promise(r => setTimeout(r, 200));
+                    await new Promise(r => setTimeout(r, 200));
             } catch (error) {
                 console.error(`Error fetching commits from ${repo.full_name}:`, error);
             }
