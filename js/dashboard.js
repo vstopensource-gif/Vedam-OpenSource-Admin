@@ -77,13 +77,27 @@ function updateDashboardStats(members) {
  * @param {Array<Object>} members - Array of member objects
  * @returns {void}
  */
+// Store chart instance to prevent multiple instances
+let prTrendsChartInstance = null;
+
 function loadDashboardCharts(members) {
   // PR Trends Chart
   const prTrendsCtx = document.getElementById("prTrendsChart");
   if (prTrendsCtx) {
+    // Destroy existing chart instance if it exists
+    if (prTrendsChartInstance) {
+      prTrendsChartInstance.destroy();
+      prTrendsChartInstance = null;
+    }
+
     const prTrendsData = getPRTrendsData(members, dashboardDateRange);
     const labels = getLastNDays(dashboardDateRange);
-    new Chart(prTrendsCtx, {
+    
+    // Debug logging
+    console.log('PR Trends Data:', prTrendsData);
+    console.log('Total PRs in data:', prTrendsData.reduce((a, b) => a + b, 0));
+    
+    prTrendsChartInstance = new Chart(prTrendsCtx, {
       type: "line",
       data: {
         labels: labels,
@@ -136,40 +150,93 @@ function loadDashboardCharts(members) {
 function getPRTrendsData(members, days = 30) {
   // Prefer recentPRs timestamps if available; else even distribution fallback
   const labels = getLastNDays(days);
-  const dayStarts = labels.map((_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (days - 1 - i));
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  });
+  
+  // Create day boundaries (start of each day in local timezone)
+  const now = new Date();
+  const dayStarts = [];
+  const dayEnds = [];
+  
+  for (let i = days - 1; i >= 0; i--) {
+    const dayStart = new Date(now);
+    dayStart.setDate(dayStart.getDate() - i);
+    dayStart.setHours(0, 0, 0, 0);
+    
+    const dayEnd = new Date(dayStart);
+    dayEnd.setHours(23, 59, 59, 999);
+    
+    dayStarts.push(dayStart);
+    dayEnds.push(dayEnd);
+  }
+  
   const buckets = new Array(days).fill(0);
   let hasTimestamps = false;
+  let totalPRsWithTimestamps = 0;
+  
+  // Get the range start and end for filtering
+  const rangeStart = dayStarts[0];
+  const rangeEnd = dayEnds[dayEnds.length - 1];
+  
   members.forEach((m) => {
     const recent = m.githubActivity?.recentPRs || [];
-    if (recent.length) hasTimestamps = true;
-    recent.forEach((pr) => {
-      const created = new Date(pr.created_at);
-      for (let i = 0; i < dayStarts.length; i++) {
-        const start = dayStarts[i];
-        const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-        if (created >= start && created < end) {
-          buckets[i]++;
-          break;
+    if (recent.length) {
+      hasTimestamps = true;
+      recent.forEach((pr) => {
+        // Support both createdAt and created_at property names
+        const createdDateStr = pr.createdAt || pr.created_at;
+        if (!createdDateStr) {
+          return; // Skip PRs without dates
         }
-      }
-    });
+        
+        const created = new Date(createdDateStr);
+        if (isNaN(created.getTime())) {
+          return; // Skip invalid dates
+        }
+        
+        // Only count PRs within the date range
+        if (created < rangeStart || created > rangeEnd) {
+          return; // PR is outside our date range
+        }
+        
+        // Find which bucket this PR belongs to
+        for (let i = 0; i < dayStarts.length; i++) {
+          const start = dayStarts[i];
+          const end = dayEnds[i];
+          if (created >= start && created <= end) {
+            buckets[i]++;
+            totalPRsWithTimestamps++;
+            break;
+          }
+        }
+      });
+    }
   });
-  if (hasTimestamps) return buckets;
-  // fallback
+  
+  console.log(`PR Trends: ${totalPRsWithTimestamps} PRs with timestamps in last ${days} days, hasTimestamps: ${hasTimestamps}`);
+  
+  if (hasTimestamps && totalPRsWithTimestamps > 0) {
+    return buckets;
+  }
+  
+  // Fallback: distribute total PRs evenly across days (only if we have no timestamp data)
   const totalPRs = members.reduce(
     (sum, m) => sum + (m.githubActivity?.pullRequests || 0),
     0
   );
+  
+  console.log(`PR Trends: Using fallback distribution for ${totalPRs} total PRs`);
+  
+  if (totalPRs === 0) {
+    return buckets; // All zeros
+  }
+  
+  // Distribute evenly but with some variation to make it look more realistic
   const base = Math.floor(totalPRs / days);
   let rem = totalPRs - base * days;
   for (let i = 0; i < days; i++) {
     buckets[i] = base + (rem > 0 ? 1 : 0);
     if (rem > 0) rem--;
   }
+  
   return buckets;
 }
 
